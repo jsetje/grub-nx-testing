@@ -379,6 +379,11 @@
     {0xb6, 0xc7, 0x44, 0x0b, 0x29, 0xbb, 0x8c, 0x4f } \
   }
 
+#define GRUB_EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID \
+  { 0xf4560cf6, 0x40ec, 0x4b4a, \
+    { 0xa1, 0x92, 0xbf, 0x1d, 0x57, 0xd0, 0xb1, 0x89 } \
+  }
+
 struct grub_efi_sal_system_table
 {
   grub_uint32_t signature;
@@ -643,6 +648,25 @@ typedef grub_uint16_t grub_efi_ipv6_address_t[8];
 typedef grub_uint8_t grub_efi_ip_address_t[8] __attribute__ ((aligned(4)));
 typedef grub_efi_uint64_t grub_efi_physical_address_t;
 typedef grub_efi_uint64_t grub_efi_virtual_address_t;
+
+struct grub_efi_guid
+{
+  grub_uint32_t data1;
+  grub_uint16_t data2;
+  grub_uint16_t data3;
+  grub_uint8_t data4[8];
+} __attribute__ ((aligned(8)));
+typedef struct grub_efi_guid grub_efi_guid_t;
+
+struct grub_efi_packed_guid
+{
+  grub_uint32_t data1;
+  grub_uint16_t data2;
+  grub_uint16_t data3;
+  grub_uint8_t data4[8];
+} GRUB_PACKED;
+typedef struct grub_efi_packed_guid grub_efi_packed_guid_t;
+
 
 /* XXX although the spec does not specify the padding, this actually
    must have the padding!  */
@@ -1814,5 +1838,25 @@ struct initrd_media_device_path {
   grub_efi_device_path_t               end;
 } GRUB_PACKED;
 typedef struct initrd_media_device_path initrd_media_device_path_t;
+
+struct grub_efi_memory_attribute_protocol
+{
+  grub_efi_status_t (__grub_efi_api *get_memory_attributes) (
+			    struct grub_efi_memory_attribute_protocol *this,
+			    grub_efi_physical_address_t base_address,
+			    grub_efi_uint64_t length,
+			    grub_efi_uint64_t *attributes);
+  grub_efi_status_t (__grub_efi_api *set_memory_attributes) (
+			    struct grub_efi_memory_attribute_protocol *this,
+			    grub_efi_physical_address_t base_address,
+			    grub_efi_uint64_t length,
+			    grub_efi_uint64_t attributes);
+  grub_efi_status_t (__grub_efi_api *clear_memory_attributes) (
+			    struct grub_efi_memory_attribute_protocol *this,
+			    grub_efi_physical_address_t base_address,
+			    grub_efi_uint64_t length,
+			    grub_efi_uint64_t attributes);
+};
+typedef struct grub_efi_memory_attribute_protocol grub_efi_memory_attribute_protocol_t;
 
 #endif /* ! GRUB_EFI_API_HEADER */
