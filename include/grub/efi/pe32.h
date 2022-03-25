@@ -48,6 +48,29 @@
 
 #define GRUB_PE32_MAGIC			0x5a4d
 
+struct grub_dos_header
+{
+  grub_uint16_t magic;
+  grub_uint16_t cblp;
+  grub_uint16_t cp;
+  grub_uint16_t crlc;
+  grub_uint16_t cparhdr;
+  grub_uint16_t minalloc;
+  grub_uint16_t maxalloc;
+  grub_uint16_t ss;
+  grub_uint16_t sp;
+  grub_uint16_t csum;
+  grub_uint16_t ip;
+  grub_uint16_t cs;
+  grub_uint16_t lfarlc;
+  grub_uint16_t ovno;
+  grub_uint16_t res0[4];
+  grub_uint16_t oemid;
+  grub_uint16_t oeminfo;
+  grub_uint16_t res1[10];
+  grub_uint32_t lfanew;
+};
+
 struct grub_msdos_image_header
 {
   /* This is always 'MZ'. (GRUB_PE32_MAGIC)  */
@@ -236,7 +259,11 @@ struct grub_pe64_optional_header
 struct grub_pe32_section_table
 {
   char name[8];
-  grub_uint32_t virtual_size;
+  union
+    {
+      grub_uint32_t physical_address;
+      grub_uint32_t virtual_size;
+    };
   grub_uint32_t virtual_address;
   grub_uint32_t raw_data_size;
   grub_uint32_t raw_data_offset;
@@ -247,12 +274,18 @@ struct grub_pe32_section_table
   grub_uint32_t characteristics;
 };
 
+#define GRUB_PE32_SCN_TYPE_NO_PAD		0x00000008
 #define GRUB_PE32_SCN_CNT_CODE			0x00000020
 #define GRUB_PE32_SCN_CNT_INITIALIZED_DATA	0x00000040
-#define GRUB_PE32_SCN_MEM_DISCARDABLE		0x02000000
-#define GRUB_PE32_SCN_MEM_EXECUTE		0x20000000
-#define GRUB_PE32_SCN_MEM_READ			0x40000000
-#define GRUB_PE32_SCN_MEM_WRITE			0x80000000
+#define GRUB_PE32_SCN_CNT_UNINITIALIZED_DATA	0x00000080
+#define GRUB_PE32_SCN_LNK_OTHER			0x00000100
+#define GRUB_PE32_SCN_LNK_INFO			0x00000200
+#define GRUB_PE32_SCN_LNK_REMOVE		0x00000800
+#define GRUB_PE32_SCN_LNK_COMDAT		0x00001000
+#define GRUB_PE32_SCN_GPREL			0x00008000
+#define GRUB_PE32_SCN_MEM_16BIT			0x00020000
+#define GRUB_PE32_SCN_MEM_LOCKED		0x00040000
+#define GRUB_PE32_SCN_MEM_PRELOAD		0x00080000
 
 #define GRUB_PE32_SCN_ALIGN_1BYTES		0x00100000
 #define GRUB_PE32_SCN_ALIGN_2BYTES		0x00200000
@@ -261,11 +294,28 @@ struct grub_pe32_section_table
 #define GRUB_PE32_SCN_ALIGN_16BYTES		0x00500000
 #define GRUB_PE32_SCN_ALIGN_32BYTES		0x00600000
 #define GRUB_PE32_SCN_ALIGN_64BYTES		0x00700000
+#define GRUB_PE32_SCN_ALIGN_128BYTES		0x00800000
+#define GRUB_PE32_SCN_ALIGN_256BYTES		0x00900000
+#define GRUB_PE32_SCN_ALIGN_512BYTES		0x00A00000
+#define GRUB_PE32_SCN_ALIGN_1024BYTES		0x00B00000
+#define GRUB_PE32_SCN_ALIGN_2048BYTES		0x00C00000
+#define GRUB_PE32_SCN_ALIGN_4096BYTES		0x00D00000
+#define GRUB_PE32_SCN_ALIGN_8192BYTES		0x00E00000
 
 #define GRUB_PE32_SCN_ALIGN_SHIFT		20
 #define GRUB_PE32_SCN_ALIGN_MASK		7
 
-#define GRUB_PE32_SIGNATURE_SIZE 4
+#define GRUB_PE32_SCN_LNK_NRELOC_OVFL		0x01000000
+#define GRUB_PE32_SCN_MEM_DISCARDABLE		0x02000000
+#define GRUB_PE32_SCN_MEM_NOT_CACHED		0x04000000
+#define GRUB_PE32_SCN_MEM_NOT_PAGED		0x08000000
+#define GRUB_PE32_SCN_MEM_SHARED		0x10000000
+#define GRUB_PE32_SCN_MEM_EXECUTE		0x20000000
+#define GRUB_PE32_SCN_MEM_READ			0x40000000
+#define GRUB_PE32_SCN_MEM_WRITE			0x80000000
+
+#define GRUB_PE32_SIGNATURE_SIZE		4
+#define GRUB_PE32_SIGNATURE			"PE\0\0"
 
 #if GRUB_TARGET_SIZEOF_VOID_P == 8
 #define GRUB_PE32_NATIVE_MAGIC			GRUB_PE32_PE64_MAGIC
@@ -288,6 +338,40 @@ struct grub_pe_image_header
   /* The Optional header.  */
   struct grub_pe32_optional_header optional_header;
 #endif
+};
+
+struct grub_pe32_header
+{
+  /* This should be filled in with GRUB_PE32_MSDOS_STUB.  */
+  grub_uint8_t msdos_stub[GRUB_PE32_MSDOS_STUB_SIZE];
+
+  /* This is always PE\0\0.  */
+  char signature[GRUB_PE32_SIGNATURE_SIZE];
+
+  /* The COFF file header.  */
+  struct grub_pe32_coff_header coff_header;
+
+#if GRUB_TARGET_SIZEOF_VOID_P == 8
+  /* The Optional header.  */
+  struct grub_pe64_optional_header optional_header;
+#else
+  /* The Optional header.  */
+  struct grub_pe32_optional_header optional_header;
+#endif
+};
+
+struct grub_pe32_header_32
+{
+  char signature[GRUB_PE32_SIGNATURE_SIZE];
+  struct grub_pe32_coff_header coff_header;
+  struct grub_pe32_optional_header optional_header;
+};
+
+struct grub_pe32_header_64
+{
+  char signature[GRUB_PE32_SIGNATURE_SIZE];
+  struct grub_pe32_coff_header coff_header;
+  struct grub_pe64_optional_header optional_header;
 };
 
 struct grub_pe32_fixup_block
